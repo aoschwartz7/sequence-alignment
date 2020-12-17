@@ -33,39 +33,43 @@ def mapASCII(df:pd.DataFrame):
     df['SequenceNull'] = np.random.RandomState(seed=1).permutation(df['Sequence'].values) # Shuffle seq for null testing
     return df
 
-def makeFrames(df:pd.DataFrame, attr:str):
-    """ Make DataFrames for desired attribute (Prep, Moves, Epochs...)
+def makeSequences(df:pd.DataFrame, attr:str, sequence:str):
+    """ Make sequences for desired attribute (Prep, Moves, Epochs...)
     Args:
-        df (pd.DataFrame): Whole dataframe.
+        df (pd.DataFrame): Data.
         attr (str): Desired attribute (observations, epochs, etc).
+        sequence (str): Column name for selecting Sequence or SequenceNull.
+    Returns:
+        sequencesDict (dict): Dict with sequence names (keys) and sequences (values)
     """
     frames = [] # create separate frames per observation (ie prep)
     attr_types = df[attr].unique().tolist() # get unique attribute types
     for i in attr_types:
         frames.append(df[df[attr].isin([i])])
-    return frames
+    sequencesDict = {}
+    for i in range(len(frames)):
+        sequenceName = str(frames[i][attr].iloc[0])
+        eachSequence = frames[i][sequence].tolist() # combine Combos into single sequence
+        eachSequence = "".join(frames[i][sequence].tolist()) # combine Combos into single sequence
+        sequencesDict[sequenceName] = eachSequence
+    return sequencesDict
 
-# Focusing on Prep data first...
-def makePairs(frames:list, attr:str, sequence:str):
-    """ Make Combo sequence pairs for desired frames/attributes.
+        #### FOLLOWING FUNCTIONS ARE FOR MULTIPLE ALIGNMENTS #####
+
+
+
+        #### FOLLOWING FUNCTIONS ARE FOR PAIRWISE ALIGNMENTS #####
+def makePairs(sequencesDict:dict):
+    """ Make Combo sequence pairs for desired frames/attributes for pairwise-alignments.
     Args:
-        frames (list): List of separate DataFrames for attribute.
-        attr (str): Desired attribute (observations, epochs, etc).
-        sequence (str): Column name for selecting Sequence or SequenceNull.
+        sequencesDict (dict): Dict with sequence names (keys) and sequences (values)
     Returns:
         pairs (list): All possible sequence pairs as tuples in list.
         pairNames (list): Names of sequence pairs as tuples in list.
     """
-    sequencesDict = {}
-    sequencesDictNull = {} # for storing null sequences
-    for i in range(len(frames)):
-        sequenceName = str(frames[i][attr].iloc[0])
-        singSequence = frames[i][sequence].tolist() # combine Combos into single sequence
-        singSequence = "".join(frames[i][sequence].tolist()) # combine Combos into single sequence
-        sequencesDict[sequenceName] = singSequence
-
-    sequencesList =list(sequencesDict.values())
+    sequencesList = list(sequencesDict.values())
     pairs, pairNames = makeTuples(sequencesList, sequencesDict)
+    return pairs, pairNames
 
 def makeTuples(sequencesList:list, sequencesDict:dict):
     """ Create tuples of all possible sequence combinations so we can apply
@@ -87,8 +91,16 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
         pairNames.append((first,second))
     return pairs, pairNames
 
-    """ Compares sequence alignment (Combo) among observations (Prep), applying
-    Needleman-Wunsch algorithm.
+
+def multipleSequenceAlign():
+    """
+    """
+
+def globalPairwiseAlign(pairs:list, pairNames:list):
+    """ Finds global alignment between pairs, applying
+    Needleman-Wunsch algorithm.Function comes from:
+    https://biopython.org/docs/1.75/api/Bio.pairwise2.html
+
     Args:
         frames (list): List of separate Prep DataFrames
     Returns:
@@ -126,5 +138,5 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
 
 if __name__ == '__main__':
     df = mapASCII(df)
-    frames = makeFrames(df, 'Prep')
-    makePairs(frames, 'Prep', 'Sequence')
+    sequencesDict = makeSequences(df, 'Prep', 'Sequence')
+    pairs, pairNames = makePairs(sequencesDict)
