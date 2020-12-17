@@ -91,8 +91,8 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
     return pairs, pairNames
 
 def globalPairwiseAlign(pairs:list, pairNames:list):
-    """ Finds global alignment between pairs, applying
-    Needleman-Wunsch algorithm (I think). Function comes from:
+    """ Finds best global alignment between pairs, applying
+    dynamic programming. Function comes from:
     https://biopython.org/docs/1.75/api/Bio.pairwise2.html
     Function parameters:
         - Do a global alignment.
@@ -106,11 +106,20 @@ def globalPairwiseAlign(pairs:list, pairNames:list):
         results...
     """
     aligner = Align.PairwiseAligner()
-    aligner.mode = 'local'
-    # testing ASCII compatibility
-    # alignments = pairwise2.align.globalms(sequencesList[0], sequencesList[1], 2, -1, -.5, -.1)
-    alignments = pairwise2.align.globalms(sequencesList[2], sequencesList[3], 2, -1, -.5, -.1, score_only=True)
-    print(alignments)
+    dfPairScores = [] # keep track of scores for df
+    for i in range(len(pairs)): # iterate through tuples and get scores per pair
+        alignmentScore = pairwise2.align.globalms(pairs[i][0], pairs[i][1], 2, -1, -.5, -.1, score_only=True)
+        dfPairScores.append(alignmentScore)
+        # print(pairNames[i], alignmentScore)
+    results = pd.DataFrame([dfPairScores], columns = pairNames)
+    results.to_csv('test.csv')
+    # print(dfPairScore)
+    # print(pairNames)
+
+
+
+        # alignmentScore = pairwise2.align.globalms(pair[0], pair[1], 2, -1, -.5, -.1, score_only=True)
+        # print(alignmentScore, pairNames[pair])
     # x = 0
     # for alignment in sorted(alignments):
     #     if x==2:
