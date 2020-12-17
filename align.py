@@ -6,26 +6,33 @@ from Bio.pairwise2 import format_alignment
 from itertools import combinations
 import random
 
-df = pd.read_csv("data.csv") # import sequence data as DataFrame
+pd.options.mode.chained_assignment = None  # TODO
+df = pd.read_csv("data.csv") # import sequence data
 
+def mapASCII(df:pd.DataFrame):
+    """ Map sequences to ASCII values for alignments.
+    Args:
+        df (pd.DataFrame): Data before ASCII mapping.
+    Returns:
+        df (pd.DataFrame): Data after ASCII mapping, including null sequence column.
+    """
+    ascii_code = [i for i in range(161,(115+162))] # Create string values from ASCII code
+    ascii_list = []
+    for value in ascii_code: # Convert ASCII code to ASCII symbols
+        ascii_list.append(chr(value))
+    del ascii_list[12] # somehow '\xad' is prescent at this index: delete it
 
+    df = df[df['Combo'].notna()] # drop rows where Combo has missing data
+    unique_combos = df['Combo'].unique() # identify unique Combo sequences (115 total)
 
-ascii_code = [i for i in range(161,(115+162))] # Create string values from ASCII code
-# ascii_code = [i for i in range(128,130)]
-ascii_list = []
-for value in ascii_code: # Convert ASCII code to ASCII symbols
-    ascii_list.append(chr(value))
+    # Create dictionary for mapping Combo sequences to ASCII
+    combo_ascii = {unique_combos[i]: ascii_list[i] for i in range(len(unique_combos))}
 
-del ascii_list[12] # somehow '\xad' is prescent at this index: delete it
-
-df = df[df['Combo'].notna()] # drop rows where Combo has missing data
-unique_combos = df['Combo'].unique() # identify unique Combo sequences (115 total)
-
-# Create dictionary for mapping Combo sequences to ASCII
-combo_ascii = {unique_combos[i]: ascii_list[i] for i in range(len(unique_combos))}
-
-df['Combo'] = df['Combo'].map(combo_ascii) # Map Combo to ascii values
-df['ComboNull'] = np.random.RandomState(seed=1).permutation(df['Combo'].values) # Shuffle seq for null testing
+    df['Sequence'] = df['Combo'].values
+    df['Sequence'] = df['Sequence'].map(combo_ascii) # Map Combo to ascii values    #
+    df['SequenceNull'] = np.random.RandomState(seed=1).permutation(df['Sequence'].values) # Shuffle seq for null testing
+    print(df['Sequence'],df['SequenceNull'])
+    return df
 
 def makeFrames(df:pd.DataFrame, attr:str):
     """ Make DataFrames for desired attribute (Prep, Moves, Epochs...)
@@ -35,20 +42,18 @@ def makeFrames(df:pd.DataFrame, attr:str):
     """
     frames = [] # create separate frames per observation (ie prep)
     attr_types = df[attr].unique().tolist() # get unique attribute types
-
     for i in attr_types:
-        frames.append(df[df.Prep.isin([i])]) # TODO: find way to pass in attr for Prep
+        frames.append(df[df[attr].isin([i])])
     return frames
 
-
-# Focus on Prep data first...
-def makePairs(frames:list, attr):
+# Focusing on Prep data first...
+def makePairs(frames:list, attr:str):
     """ Make Combo sequence pairs for desired frames/attributes.
     Args:
         frames (list): List of separate DataFrames for attribute.
+        attr (str): Desired attribute (observations, epochs, etc).
     Returns:
         TODO: Pairwise sequences & pairwise names
-
     """
     sequencesDict = {}
     for i in range(len(frames)):
@@ -57,8 +62,7 @@ def makePairs(frames:list, attr):
         sequence = "".join(frames[i]['Combo'].tolist()) # combine Combos into single sequence
         sequencesDict[sequenceName] = sequence
     sequencesList =list(sequencesDict.values())
-    # sequencesList = (1,2,3,4)
-    makeTuples(sequencesList, sequencesDict)
+    sequencesList, sequencesDict = makeTuples(sequencesList, sequencesDict)
 
 def makeTuples(sequencesList:list, sequencesDict:dict):
     """ Create tuples of all possible sequence combinations so we can apply
@@ -119,5 +123,6 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
 
 
 if __name__ == '__main__':
+    df = mapASCII(df)
     frames = makeFrames(df, 'Prep')
-    makePairs(frames, 'Prep')
+    # makePairs(frames, 'Prep')

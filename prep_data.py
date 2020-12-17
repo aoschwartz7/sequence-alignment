@@ -7,10 +7,9 @@ import random
 
 df = pd.read_csv("data.csv")
 
-# Create string values from ASCII code
-ascii_code = [i for i in range(161,(115+161))]
+ascii_code = [i for i in range(161,(115+161))] # Create string values from ASCII code
 
-ascii_list = []
+ascii_list = [] # convert code to ASCII symbols
 for value in ascii_code:
     ascii_list.append(chr(value))
 
@@ -70,34 +69,34 @@ seq_prep_925 = Seq(string_prep_925)
 # Do global alignment (don't penalize gaps)
 
 results = pd.DataFrame(columns = ['Sequences', 'Average Length', 'Score', 'Normalized Score'])
-print(results.head())
+# print(results.head())
 
 seq1 = "ABC"
 seq2 = "ABCDEF"
 
-def getSimilarityScore(results, seq_pair, seq1, seq2):
-    score = pairwise2.align.globalmx(seq1, seq2, match=1, mismatch=-1, score_only=True)
-    avg_length = (len(seq1)+len(seq2))/2
-    normalized_score = score/(avg_length)
+# def getSimilarityScore(results, seq_pair, seq1, seq2):
+#     score = pairwise2.align.globalmx(seq1, seq2, match=1, mismatch=-1, score_only=True)
+#     avg_length = (len(seq1)+len(seq2))/2
+#     normalized_score = score/(avg_length)
+#
+#     # print(seq_pair, avg_length, score, normalized_score)
+#     new_row = pd.Series(
+#           data={
+#                'Sequences':[seq_pair],
+#                'Average Length':[avg_length],
+#                'Score':[score],
+#                'Normalized Score':[normalized_score]
+#                },
+# ...       index=df.columns, name=17)
+#
+#     new_row = {'Sequences':[seq_pair],
+#                'Average Length':[avg_length],
+#                'Score':[score],
+#                'Normalized Score':[normalized_score]}
+#     data = pd.DataFrame(new_row)
+#     df = df.append(data)
 
-    # print(seq_pair, avg_length, score, normalized_score)
-    new_row = pd.Series(
-          data={
-               'Sequences':[seq_pair],
-               'Average Length':[avg_length],
-               'Score':[score],
-               'Normalized Score':[normalized_score]
-               },
-...       index=df.columns, name=17)
-
-    new_row = {'Sequences':[seq_pair],
-               'Average Length':[avg_length],
-               'Score':[score],
-               'Normalized Score':[normalized_score]}
-    data = pd.DataFrame(new_row)
-    df = df.append(data)
-
-getSimilarityScore(results, "seq1 x seq2", seq1, seq2)
+# getSimilarityScore(results, "seq1 x seq2", seq1, seq2)
 
 
 
@@ -147,3 +146,8 @@ getSimilarityScore(results, "seq1 x seq2", seq1, seq2)
 # print("prep_917: ", string_prep_917)
 # print("***************")
 # print("prep_925: ", string_prep_925)
+
+
+
+# if __name__ == '__main__':
+#     ()
