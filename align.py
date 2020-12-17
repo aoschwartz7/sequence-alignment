@@ -31,7 +31,6 @@ def mapASCII(df:pd.DataFrame):
     df['Sequence'] = df['Combo'].values
     df['Sequence'] = df['Sequence'].map(combo_ascii) # Map Combo to ascii values    #
     df['SequenceNull'] = np.random.RandomState(seed=1).permutation(df['Sequence'].values) # Shuffle seq for null testing
-    print(df['Sequence'],df['SequenceNull'])
     return df
 
 def makeFrames(df:pd.DataFrame, attr:str):
@@ -47,22 +46,26 @@ def makeFrames(df:pd.DataFrame, attr:str):
     return frames
 
 # Focusing on Prep data first...
-def makePairs(frames:list, attr:str):
+def makePairs(frames:list, attr:str, sequence:str):
     """ Make Combo sequence pairs for desired frames/attributes.
     Args:
         frames (list): List of separate DataFrames for attribute.
         attr (str): Desired attribute (observations, epochs, etc).
+        sequence (str): Column name for selecting Sequence or SequenceNull.
     Returns:
-        TODO: Pairwise sequences & pairwise names
+        pairs (list): All possible sequence pairs as tuples in list.
+        pairNames (list): Names of sequence pairs as tuples in list.
     """
     sequencesDict = {}
+    sequencesDictNull = {} # for storing null sequences
     for i in range(len(frames)):
-        sequenceName = str(frames[i]['Prep'].iloc[0])
-        sequence = frames[i]['Combo'].tolist() # combine Combos into single sequence
-        sequence = "".join(frames[i]['Combo'].tolist()) # combine Combos into single sequence
-        sequencesDict[sequenceName] = sequence
+        sequenceName = str(frames[i][attr].iloc[0])
+        singSequence = frames[i][sequence].tolist() # combine Combos into single sequence
+        singSequence = "".join(frames[i][sequence].tolist()) # combine Combos into single sequence
+        sequencesDict[sequenceName] = singSequence
+
     sequencesList =list(sequencesDict.values())
-    sequencesList, sequencesDict = makeTuples(sequencesList, sequencesDict)
+    pairs, pairNames = makeTuples(sequencesList, sequencesDict)
 
 def makeTuples(sequencesList:list, sequencesDict:dict):
     """ Create tuples of all possible sequence combinations so we can apply
@@ -72,7 +75,7 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
             sequencesDict (list): Dictionary of key-pairs for sequences and their names.
         Returns:
             pairs (list): List of tuples containing all possible sequence pairs.
-            pairNames (list): List of matching tuple sequence pair names.
+            pairNames (list): List of these tuple sequence pair names.
     """
     pairs = list(combinations(sequencesList, 2))
     pairNames = []
@@ -83,7 +86,6 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
         second = keys[vals.index(tup[1])]
         pairNames.append((first,second))
     return pairs, pairNames
-
 
     """ Compares sequence alignment (Combo) among observations (Prep), applying
     Needleman-Wunsch algorithm.
@@ -125,4 +127,4 @@ def makeTuples(sequencesList:list, sequencesDict:dict):
 if __name__ == '__main__':
     df = mapASCII(df)
     frames = makeFrames(df, 'Prep')
-    # makePairs(frames, 'Prep')
+    makePairs(frames, 'Prep', 'Sequence')
