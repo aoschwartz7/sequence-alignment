@@ -54,9 +54,12 @@ def makeSequences(df:pd.DataFrame, attr:str, sequence:str):
         eachSequence = frames[i][sequence].tolist() # combine Combos into single sequence
         eachSequence = "".join(frames[i][sequence].tolist()) # combine Combos into single sequence
         sequencesDict[sequenceName] = eachSequence
-        sequencesList = list(sequencesDict.values()) # for quick test i'm using this list
 
-    return sequencesDict, sequencesList
+    if 'nan' in sequencesDict: # remove nan if present
+        sequencesDict.pop('nan')
+
+    return sequencesDict
+
 
 def makePairs(sequencesDict:dict):
     """ Make Combo sequence pairs for desired frames/attributes for pairwise-alignments.
@@ -64,33 +67,12 @@ def makePairs(sequencesDict:dict):
         sequencesDict (dict): Dict with sequence names (keys) and sequences (values)
     Returns:
         pairs (list): All possible sequence pairs as tuples in list.
-        pairNames (list): Names of sequence pairs as tuples in list.
     """
-    sequencesList = list(sequencesDict.values())
-    pairs, pairNames = makeTuples(sequencesList, sequencesDict)
-    return pairs, pairNames
+    pairs = list(combinations(sequencesDict, 2)) # limit number combos to pairs (2)
+    return pairs
 
-def makeTuples(sequencesList:list, sequencesDict:dict):
-    """ Create tuples of all possible sequence combinations so we can apply
-        alignment algorithms below. Helper function for makePairs().
-        Args:
-            sequencesList (list): Sequences list with just sequences, no keys.
-            sequencesDict (list): Dictionary of key-pairs for sequences and their names.
-        Returns:
-            pairs (list): List of tuples containing all possible sequence pairs.
-            pairNames (list): List of these tuple sequence pair names.
-    """
-    pairs = list(combinations(sequencesList, 2))
-    pairNames = []
-    keys = list(sequencesDict.keys())
-    vals = list(sequencesDict.values())
-    for tup in pairs: # get sequence-pair names
-        first = keys[vals.index(tup[0])]
-        second = keys[vals.index(tup[1])]
-        pairNames.append((first,second))
-    return pairs, pairNames
 
-def globalPairwiseAlign(pairs:list, pairNames:list):
+def globalPairwiseAlign(pairs:list, sequencesDict:dict, pairType:str):
     """ Finds best global alignment between pairs, applying
     dynamic programming. Function comes from:
     https://biopython.org/docs/1.75/api/Bio.pairwise2.html
@@ -101,63 +83,30 @@ def globalPairwiseAlign(pairs:list, pairNames:list):
         - 0.5 points are deducted when opening a gap
         - 0.1 points are deducted when extending it.
     Args:
-        frames (list): List of separate Prep DataFrames
+        pairs (list): List of tuples containing sequence pairname combinations.
+        sequencesDict (dict): Dictionary containing sequence names as keys,
+                              sequences as values.
     Returns:
-        results...
+        results (list): List containing results as dictionary for a pd.DataFrame.
     """
     aligner = Align.PairwiseAligner()
     dfPairScores = [] # keep track of scores for df
+    results = [] # keep track of results for pd.DataFrame
+    print("Running alignments.")
     for i in range(len(pairs)): # iterate through tuples and get scores per pair
-        alignmentScore = pairwise2.align.globalms(pairs[i][0], pairs[i][1], 2, -1, -.5, -.1, score_only=True)
-        dfPairScores.append(alignmentScore)
-        # print(pairNames[i], alignmentScore)
-    results = pd.DataFrame([dfPairScores], columns = pairNames)
-    results.to_csv('test.csv')
-    # print(dfPairScore)
-    # print(pairNames)
+        sequence1Name = pairs[i][0]
+        sequence2Name = pairs[i][1]
+        sequence1 = sequencesDict[sequence1Name]
+        sequence2 = sequencesDict[sequence2Name]
+        alignmentScore = pairwise2.align.globalms(sequence1, sequence2, 2, -1, -.5, -.1, score_only=True)
+        alignmentScore = int(alignmentScore)
+        scoreResults = {'type':pairType, 'pair':pairs[i], 'score':alignmentScore}
+        print(scoreResults)
+        results.append(scoreResults)
+    return results
 
-
-
-        # alignmentScore = pairwise2.align.globalms(pair[0], pair[1], 2, -1, -.5, -.1, score_only=True)
-        # print(alignmentScore, pairNames[pair])
-    # x = 0
-    # for alignment in sorted(alignments):
-    #     if x==2:
-    #         break
-    #     print("Score = {}".format(alignment.score))
-    #     x+=1
-
-
-# def globalAlign(results, seq_pair, seq1, seq2):
-#     """ Perform global alignment on sequence combinations and
-#     https://biopython.org/docs/1.75/api/Bio.pairwise2.html
-#     """
-#     score = pairwise2.align.globalmx(seq1, seq2, match=1, mismatch=-1, score_only=True)
-#     avg_length = (len(seq1)+len(seq2))/2
-#     normalized_score = score/(avg_length)
-#
-#     # print(seq_pair, avg_length, score, normalized_score)
-#     new_row = pd.Series(
-#           data={
-#                'Sequences':[seq_pair],
-#                'Average Length':[avg_length],
-#                'Score':[score],
-#                'Normalized Score':[normalized_score]
-#                },
-# ...       index=df.columns, name=17)
-#
-#     new_row = {'Sequences':[seq_pair],
-#                'Average Length':[avg_length],
-#                'Score':[score],
-#                'Normalized Score':[normalized_score]}
-#     data = pd.DataFrame(new_row)
-#     df = df.append(data)
-
-    # generate each Combo sequence per Prep as key-value pair
-
-
-if __name__ == '__main__':
-    df = mapASCII(df)
-    sequencesDict, sequencesList = makeSequences(df, 'Prep', 'Sequence')
-    pairs, pairNames = makePairs(sequencesDict)
-    globalPairwiseAlign(pairs, pairNames)
+def makeResultsFrame(results:list):
+    """ Make a pd.DataFrame from alignment results. """
+    df_results = pd.DataFrame(results, columns=['type', 'pair', 'score'])
+    df_results.sort_values(by=['score'], ascending=False, inplace=True)
+    df_results.to_csv('Bout_results.csv', index=False)
