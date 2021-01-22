@@ -6,6 +6,7 @@ from Bio.pairwise2 import format_alignment
 from itertools import combinations
 import random
 from tqdm import tqdm
+import re
 
 from Bio import Align
 
@@ -76,46 +77,99 @@ def makePairs(sequencesDict:dict):
     return pairs
 
 
-def globalPairwiseAlign(pairs:list, sequencesDict:dict, pairType:str):
-    """ Finds best global alignment between pairs, applying
-    dynamic programming. Function comes from:
+def getGlobalAlignmentScore(pairs:list, sequencesDict:dict, sequenceType:str):
+    """ Finds global alignments between pairs, applying
+    dynamic programming. Functions comes from:
+
     https://biopython.org/docs/1.75/api/Bio.pairwise2.html
+
     Function parameters:
-        - Do a global alignment.
-        - Identical characters are given 2 points
+        - Alignment pairs.
+        - Identical characters are given 2 points (1 for local alignment)
         - 1 point is deducted for each non-identical character.
-        - 0.5 points are deducted when opening a gap
-        - 0.1 points are deducted when extending it.
+        - 0.5 points are deducted when opening a gap (10 for local alignment)
+        - 0.1 points are deducted when extending it (0.5 for local alignment).
+    Args:
+        sequenceType (str): Sequence type name to columns and CSV (ie Prep, etc).
+        pairs (list): List of tuples containing sequence pairname combinations.
+        sequencesDict (dict): Dictionary containing sequence names as keys,
+                              list of sequences as values (1st is sequence,
+                              2nd is null sequence).
+
+    """
+    aligner = Align.PairwiseAligner()
+    results = [] # keep track of results for pd.DataFrame
+
+    for i in tqdm(range(len(pairs)), desc='Global alignments'):
+        sequence1Name = pairs[i][0]
+        sequence2Name = pairs[i][1]
+        sequence1 = sequencesDict[sequence1Name][0]
+        sequence2 = sequencesDict[sequence2Name][0]
+        sequence1Null = sequencesDict[sequence1Name][1]
+        sequence2Null = sequencesDict[sequence2Name][1]
+        score = pairwise2.align.globalms(sequence1, sequence2, 2, -1, -.5, -.1, score_only=True)
+        score = int(score)
+
+        nullScore = pairwise2.align.globalms(sequence1Null, sequence2Null, 2, -1, -.5, -.1, score_only=True)
+        nullScore = int(nullScore)
+        normalizedScore = score - nullScore
+
+        scoreResults = {'type':sequenceType, 'pair':pairs[i], 'score':score,
+                        'null score':nullScore, 'score normalized':normalizedScore}
+        results.append(scoreResults)
+
+        df = pd.DataFrame(results, columns=['type', 'pair', 'score',
+                                            'null score', 'score normalized'])
+        df.sort_values(by=['score normalized'], ascending=False, inplace=True)
+        df.to_csv(sequenceType + '_GlobalResults.csv', index=False)
+
+
+def getLocalAlignments(pairs:list, sequencesDict:dict, sequenceType:str):
+    """Finds local alignments between sequence pairs and builds a dictionary
+    containing sequence pair names (keys) and a list of local matches (values).
+
+    https://biopython.org/docs/1.75/api/Bio.pairwise2.html
+
+    Function parameters:
+        - Alignment pairs.
+        - Identical characters are given 1 point.
+        - 1 point is deducted for each non-identical character.
+        - 10 points are deducted when opening a gap.
+        - 0.5 points are deducted when extending it.
     Args:
         pairs (list): List of tuples containing sequence pairname combinations.
         sequencesDict (dict): Dictionary containing sequence names as keys,
                               list of sequences as values (1st is sequence,
                               2nd is null sequence).
-    Returns:
-        results (list): List containing results as dictionary for a pd.DataFrame.
     """
-    aligner = Align.PairwiseAligner()
-    results = [] # keep track of results for pd.DataFrame
-    print("Running alignments.")
-    for i in tqdm(range(len(pairs)), desc='Pair alignments'):
+    data_lists = [] # need list of lists for making pd.DataFrame
+    for i in tqdm(range(len(pairs)), desc='Local alignments'):
         sequence1Name = pairs[i][0]
         sequence2Name = pairs[i][1]
         sequence1 = sequencesDict[sequence1Name][0]
         sequence2 = sequencesDict[sequence2Name][0]
-        score = pairwise2.align.globalms(sequence1, sequence2, 2, -1, -.5, -.1, score_only=True)
-        score = int(score)
-        # now score null sequences
-        sequence1Null = sequencesDict[sequence1Name][1]
-        sequence2Null = sequencesDict[sequence2Name][1]
-        nullScore = pairwise2.align.globalms(sequence1Null, sequence2Null, 2, -1, -.5, -.1, score_only=True)
-        nullScore = int(nullScore)
-        normalizedScore = score - nullScore
-        scoreResults = {'type':pairType, 'pair':pairs[i], 'score':score,
-                        'null score':nullScore, 'score normalized':normalizedScore}
-        results.append(scoreResults)
-    return results
 
-def makeResultsFrame(results:list, sequenceType:str):
+        for a in pairwise2.align.localms(sequence1, sequence2, 1, -1, -10, -0.5):
+            alignment = format_alignment(*a) # returns list of all local alignments
+            alignment = alignment.replace('\n', '')
+            alignment = alignment.split(' ')
+            subsequence = alignment[1]
+            score = alignment[len(alignment)-1]
+            score = score.split('=')
+            score = int(score[1])
+
+            data = []
+            data.append(pairs[i])
+            data.append(subsequence)
+            data.append(score)
+        data_lists.append(data)
+
+    df = pd.DataFrame(data_lists, columns=['pair','subsequence', 'score'])
+    df.sort_values(by=['score'], ascending=False, inplace=True)
+    df.to_csv(sequenceType + '_LocalResults.csv', index=False)
+
+
+def makeResultsFrames(results:list, sequenceType:str):
     """ Make a pd.DataFrame from alignment results.
     Args:
         results (list): List of dictionaries containing alignment results.

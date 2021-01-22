@@ -8,3 +8,7 @@ Notes to myself:
 What to make of breaks between same epoch types within same prep. For example,
 Brace, a type of Move, has interruptions within Prep 917. Should I stitch these
 together as one single sequence?
+
+Motif is a region (a subsequence) of protein or DNA sequence that has a specific structure.
+Motifs are candidates for functionally important sites.
+Presence of a motif may be used as a base of protein classification.
