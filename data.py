@@ -5,6 +5,7 @@ from Bio.Seq import Seq
 from Bio.pairwise2 import format_alignment
 from itertools import combinations
 import random
+from tqdm import tqdm
 
 from Bio import Align
 
@@ -96,7 +97,7 @@ def globalPairwiseAlign(pairs:list, sequencesDict:dict, pairType:str):
     aligner = Align.PairwiseAligner()
     results = [] # keep track of results for pd.DataFrame
     print("Running alignments.")
-    for i in range(len(pairs)): # iterate through tuples and get scores per pair
+    for i in tqdm(range(len(pairs)), desc='Pair alignments'):
         sequence1Name = pairs[i][0]
         sequence2Name = pairs[i][1]
         sequence1 = sequencesDict[sequence1Name][0]
@@ -111,13 +112,17 @@ def globalPairwiseAlign(pairs:list, sequencesDict:dict, pairType:str):
         normalizedScore = score - nullScore
         scoreResults = {'type':pairType, 'pair':pairs[i], 'score':score,
                         'null score':nullScore, 'score normalized':normalizedScore}
-        print(scoreResults)
         results.append(scoreResults)
     return results
 
-def makeResultsFrame(results:list):
-    """ Make a pd.DataFrame from alignment results. """
+def makeResultsFrame(results:list, sequenceType:str):
+    """ Make a pd.DataFrame from alignment results.
+    Args:
+        results (list): List of dictionaries containing alignment results.
+        sequenceType (str): Sequence type name to make CSV.
+    Returns:
+        None. """
     df_results = pd.DataFrame(results, columns=['type', 'pair', 'score',
                                                 'null score', 'score normalized'])
     df_results.sort_values(by=['score normalized'], ascending=False, inplace=True)
-    df_results.to_csv('Prep2_results.csv', index=False)
+    df_results.to_csv(sequenceType + '_results.csv', index=False)
