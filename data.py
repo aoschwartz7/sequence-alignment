@@ -35,12 +35,13 @@ def mapASCII(df:pd.DataFrame):
     df['SequenceNull'] = np.random.RandomState(seed=1).permutation(df['Sequence'].values) # Shuffle seq for null testing
     return df
 
-def makeSequences(df:pd.DataFrame, attr:str, sequence:str):
-    """ Make sequences for desired attribute (Prep, Moves, Epochs...)
+def makeSequences(df:pd.DataFrame, attr:str):
+    """ Make sequences for desired attribute (Prep, Moves, Epochs...). Create
+    a dictionary where the key is the sequence name, value 1 the sequence, and
+    value 2 the null sequence.
     Args:
         df (pd.DataFrame): Data.
         attr (str): Desired attribute (observations, epochs, etc).
-        sequence (str): Column name for selecting Sequence or SequenceNull.
     Returns:
         sequencesDict (dict): Dict with sequence names (keys) and sequences (values)
     """
@@ -50,14 +51,16 @@ def makeSequences(df:pd.DataFrame, attr:str, sequence:str):
         frames.append(df[df[attr].isin([i])])
     sequencesDict = {}
     for i in range(len(frames)):
+        sequences = [] # first element will be full sequence, second full null seq
         sequenceName = str(frames[i][attr].iloc[0])
-        eachSequence = frames[i][sequence].tolist() # combine Combos into single sequence
-        eachSequence = "".join(frames[i][sequence].tolist()) # combine Combos into single sequence
-        sequencesDict[sequenceName] = eachSequence
+        sequence = "".join(frames[i]['Sequence'].tolist())
+        nullSequence = "".join(frames[i]['SequenceNull'].tolist())
+        sequences.append(sequence)
+        sequences.append(nullSequence)
+        sequencesDict[sequenceName] = sequences
 
     if 'nan' in sequencesDict: # remove nan if present
         sequencesDict.pop('nan')
-
     return sequencesDict
 
 
@@ -68,7 +71,7 @@ def makePairs(sequencesDict:dict):
     Returns:
         pairs (list): All possible sequence pairs as tuples in list.
     """
-    pairs = list(combinations(sequencesDict, 2)) # limit number combos to pairs (2)
+    pairs = list(combinations(sequencesDict, 2))
     return pairs
 
 
@@ -85,28 +88,36 @@ def globalPairwiseAlign(pairs:list, sequencesDict:dict, pairType:str):
     Args:
         pairs (list): List of tuples containing sequence pairname combinations.
         sequencesDict (dict): Dictionary containing sequence names as keys,
-                              sequences as values.
+                              list of sequences as values (1st is sequence,
+                              2nd is null sequence).
     Returns:
         results (list): List containing results as dictionary for a pd.DataFrame.
     """
     aligner = Align.PairwiseAligner()
-    dfPairScores = [] # keep track of scores for df
     results = [] # keep track of results for pd.DataFrame
     print("Running alignments.")
     for i in range(len(pairs)): # iterate through tuples and get scores per pair
         sequence1Name = pairs[i][0]
         sequence2Name = pairs[i][1]
-        sequence1 = sequencesDict[sequence1Name]
-        sequence2 = sequencesDict[sequence2Name]
-        alignmentScore = pairwise2.align.globalms(sequence1, sequence2, 2, -1, -.5, -.1, score_only=True)
-        alignmentScore = int(alignmentScore)
-        scoreResults = {'type':pairType, 'pair':pairs[i], 'score':alignmentScore}
+        sequence1 = sequencesDict[sequence1Name][0]
+        sequence2 = sequencesDict[sequence2Name][0]
+        score = pairwise2.align.globalms(sequence1, sequence2, 2, -1, -.5, -.1, score_only=True)
+        score = int(score)
+        # now score null sequences
+        sequence1Null = sequencesDict[sequence1Name][1]
+        sequence2Null = sequencesDict[sequence2Name][1]
+        nullScore = pairwise2.align.globalms(sequence1Null, sequence2Null, 2, -1, -.5, -.1, score_only=True)
+        nullScore = int(nullScore)
+        normalizedScore = score - nullScore
+        scoreResults = {'type':pairType, 'pair':pairs[i], 'score':score,
+                        'null score':nullScore, 'score normalized':normalizedScore}
         print(scoreResults)
         results.append(scoreResults)
     return results
 
 def makeResultsFrame(results:list):
     """ Make a pd.DataFrame from alignment results. """
-    df_results = pd.DataFrame(results, columns=['type', 'pair', 'score'])
-    df_results.sort_values(by=['score'], ascending=False, inplace=True)
-    df_results.to_csv('Bout_results.csv', index=False)
+    df_results = pd.DataFrame(results, columns=['type', 'pair', 'score',
+                                                'null score', 'score normalized'])
+    df_results.sort_values(by=['score normalized'], ascending=False, inplace=True)
+    df_results.to_csv('Prep2_results.csv', index=False)

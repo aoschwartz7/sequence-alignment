@@ -10,7 +10,7 @@ df = pd.read_csv("data.csv") # import sequence data
 df = mapASCII(df) # Map sequences to ASCII values for alignments
 
 # Create dictionary of Prep sequences, ie '917.0': 'ASCII_sequence'
-sequencesDict = makeSequences(df, 'Bout', 'Sequence')
+sequencesDict = makeSequences(df, 'Prep')
 pairs = makePairs(sequencesDict)
-results = globalPairwiseAlign(pairs, sequencesDict, 'Bout')
+results = globalPairwiseAlign(pairs, sequencesDict, 'Prep')
 makeResultsFrame(results)
