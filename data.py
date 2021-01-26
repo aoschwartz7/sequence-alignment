@@ -35,7 +35,7 @@ def mapASCII(df:pd.DataFrame):
     df['Sequence'] = df['Combo'].values
     df['Sequence'] = df['Sequence'].map(combo_ascii) # Map Combo to ascii values    #
     df['SequenceNull'] = np.random.RandomState(seed=1).permutation(df['Sequence'].values) # Shuffle seq for null testing
-    return df
+    return df, combo_ascii
 
 def makeSequences(df:pd.DataFrame, attr:str):
     """ Make sequences for desired attribute (Prep, Moves, Epochs...). Create
@@ -121,10 +121,11 @@ def getGlobalAlignmentScore(pairs:list, sequencesDict:dict, sequenceType:str):
         df = pd.DataFrame(results, columns=['type', 'pair', 'score',
                                             'null score', 'score normalized'])
         df.sort_values(by=['score normalized'], ascending=False, inplace=True)
-        df.to_csv(sequenceType + '_GlobalResults.csv', index=False)
+        # df.to_csv(sequenceType + '_GlobalResults.csv', index=False)
 
 
-def getLocalAlignments(pairs:list, sequencesDict:dict, sequenceType:str):
+def getLocalAlignments(pairs:list, sequencesDict:dict,
+                    sequenceType:str, combo_ascii:dict):
     """Finds local alignments between sequence pairs and builds a dictionary
     containing sequence pair names (keys) and a list of local matches (values).
 
@@ -141,6 +142,10 @@ def getLocalAlignments(pairs:list, sequencesDict:dict, sequenceType:str):
         sequencesDict (dict): Dictionary containing sequence names as keys,
                               list of sequences as values (1st is sequence,
                               2nd is null sequence).
+        sequenceType (str): Sequence type, such as Prep, Moves, Bout etc.
+        combi_ascii (dict): Dictionary created above of sequence combination values
+                            mapped to ascii values. Gets used by helper function
+                            decodeASCII() to decode sequences.
     """
     data_lists = [] # need list of lists for making pd.DataFrame
     for i in tqdm(range(len(pairs)), desc='Local alignments'):
@@ -166,8 +171,23 @@ def getLocalAlignments(pairs:list, sequencesDict:dict, sequenceType:str):
 
     df = pd.DataFrame(data_lists, columns=['pair','subsequence', 'score'])
     df.sort_values(by=['score'], ascending=False, inplace=True)
+    df['decoded subsequence'] = df['subsequence'].apply(decodeASCII, args=(combo_ascii,))
     df.to_csv(sequenceType + '_LocalResults.csv', index=False)
 
+def decodeASCII(x, combo_ascii):
+    """ Helper function for getLocalAlignments()."""
+    temp = []
+    temp[:] = x
+    decoded = []
+    key_list = list(combo_ascii.keys()) # for getting key from value
+    val_list = list(combo_ascii.values())
+    for i in temp:
+        position = val_list.index(i)
+        seq = key_list[position]
+        decoded.append(seq)
+    decodedJoined = "-"
+    decodedJoined = decodedJoined.join(decoded)
+    return decodedJoined
 
 def makeResultsFrames(results:list, sequenceType:str):
     """ Make a pd.DataFrame from alignment results.
@@ -179,4 +199,4 @@ def makeResultsFrames(results:list, sequenceType:str):
     df_results = pd.DataFrame(results, columns=['type', 'pair', 'score',
                                                 'null score', 'score normalized'])
     df_results.sort_values(by=['score normalized'], ascending=False, inplace=True)
-    df_results.to_csv(sequenceType + '_results.csv', index=False)
+    # df_results.to_csv(sequenceType + '_results.csv', index=False)
