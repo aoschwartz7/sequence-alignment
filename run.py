@@ -12,6 +12,6 @@ df, combo_ascii = mapASCII(df) # Map sequences to ASCII values for alignments
 # Create dictionary of Prep sequences, ie '917.0': 'ASCII_sequence'
 sequencesDict = makeSequences(df, sequenceType)
 pairs = makePairs(sequencesDict)
-# getGlobalAlignmentScore(pairs, sequencesDict, sequenceType)
+getGlobalAlignmentScore(pairs, sequencesDict, sequenceType)
 getLocalAlignments(pairs, sequencesDict, sequenceType, combo_ascii)
 # makeResultsFrames(results, sequenceType)

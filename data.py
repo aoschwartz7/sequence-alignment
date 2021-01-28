@@ -113,15 +113,17 @@ def getGlobalAlignmentScore(pairs:list, sequencesDict:dict, sequenceType:str):
         nullScore = pairwise2.align.globalms(sequence1Null, sequence2Null, 2, -1, -.5, -.1, score_only=True)
         nullScore = int(nullScore)
         normalizedScore = score - nullScore
+        pairLength = (len(sequence1), len(sequence2))
 
-        scoreResults = {'type':sequenceType, 'pair':pairs[i], 'score':score,
-                        'null score':nullScore, 'score normalized':normalizedScore}
+        scoreResults = {'type':sequenceType, 'pair':pairs[i], 'length':pairLength,
+        'score':score, 'null score':nullScore, 'score normalized':normalizedScore}
         results.append(scoreResults)
 
-        df = pd.DataFrame(results, columns=['type', 'pair', 'score',
-                                            'null score', 'score normalized'])
-        df.sort_values(by=['score normalized'], ascending=False, inplace=True)
-        # df.to_csv(sequenceType + '_GlobalResults.csv', index=False)
+    df = pd.DataFrame(results, columns=['type', 'pair', 'length', 'score',
+                                        'null score', 'score normalized'])
+    df.sort_values(by=['score normalized'], ascending=False, inplace=True)
+    df.reset_index(inplace=True)
+    df.to_csv(sequenceType + '_GlobalResults.csv', index=False)
 
 
 def getLocalAlignments(pairs:list, sequencesDict:dict,
@@ -153,6 +155,7 @@ def getLocalAlignments(pairs:list, sequencesDict:dict,
         sequence2Name = pairs[i][1]
         sequence1 = sequencesDict[sequence1Name][0]
         sequence2 = sequencesDict[sequence2Name][0]
+        pairLength = (len(sequence1), len(sequence2))
 
         for a in pairwise2.align.localms(sequence1, sequence2, 1, -1, -10, -0.5):
             alignment = format_alignment(*a) # returns list of all local alignments
@@ -165,13 +168,15 @@ def getLocalAlignments(pairs:list, sequencesDict:dict,
 
             data = []
             data.append(pairs[i])
+            data.append(pairLength)
             data.append(subsequence)
             data.append(score)
         data_lists.append(data)
 
-    df = pd.DataFrame(data_lists, columns=['pair','subsequence', 'score'])
+    df = pd.DataFrame(data_lists, columns=['pair','length', 'subsequence', 'score'])
     df.sort_values(by=['score'], ascending=False, inplace=True)
     df['decoded subsequence'] = df['subsequence'].apply(decodeASCII, args=(combo_ascii,))
+    df.reset_index(inplace=True)
     df.to_csv(sequenceType + '_LocalResults.csv', index=False)
 
 def decodeASCII(x, combo_ascii):
@@ -188,15 +193,3 @@ def decodeASCII(x, combo_ascii):
     decodedJoined = "-"
     decodedJoined = decodedJoined.join(decoded)
     return decodedJoined
-
-def makeResultsFrames(results:list, sequenceType:str):
-    """ Make a pd.DataFrame from alignment results.
-    Args:
-        results (list): List of dictionaries containing alignment results.
-        sequenceType (str): Sequence type name to make CSV.
-    Returns:
-        None. """
-    df_results = pd.DataFrame(results, columns=['type', 'pair', 'score',
-                                                'null score', 'score normalized'])
-    df_results.sort_values(by=['score normalized'], ascending=False, inplace=True)
-    # df_results.to_csv(sequenceType + '_results.csv', index=False)
